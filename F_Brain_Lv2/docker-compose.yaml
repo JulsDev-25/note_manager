@@ -1,0 +1,66 @@
+services:
+  web:
+    build:
+      context: ./server 
+    container_name: django_app
+    command: poetry run python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./server:/app
+    expose:
+      - "8000"
+    depends_on:
+      - db
+    env_file:
+      - .env
+
+  db:
+    image: postgres:15
+    container_name: postgres_db
+    restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    env_file:
+      - .env
+
+  client:
+    build:
+      context: ./client
+    container_name: react_client
+    expose:
+      - "5173"
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - HOST=0.0.0.0
+    depends_on:
+      - web
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    restart: always
+    expose:
+      - "80"
+    env_file:
+      - .env
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - db
+
+  proxy:
+    image: nginx:alpine
+    container_name: nginx_proxy
+    ports:
+      - "80:80"
+    volumes:
+      - ./proxy/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - client
+      - web
+      - pgadmin
+volumes:
+  postgres_data:
+  pgadmin_data:
